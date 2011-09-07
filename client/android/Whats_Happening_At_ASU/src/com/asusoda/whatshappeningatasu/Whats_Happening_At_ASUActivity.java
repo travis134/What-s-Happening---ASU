@@ -14,6 +14,9 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Activity;
+import android.content.Context;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -26,6 +29,7 @@ import com.google.gson.reflect.TypeToken;
 
 public class Whats_Happening_At_ASUActivity extends Activity implements OnClickListener {
 	private final String TAG = "Whats Happening @ ASU";
+	private android.location.Location currentLocation;
 	Button buttonStart, buttonStop;
 	
     @Override
@@ -38,7 +42,32 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         
         buttonStart.setOnClickListener(this);
         buttonStop.setOnClickListener(this);
+        
+        
+        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        
+        LocationListener locationListener = new LocationListener() {
+        	
+        	public void onLocationChanged(android.location.Location location) {
+              // Called when a new location is found by the network location provider.
+              locationChanged(location);
+            }
+
+            public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+            public void onProviderEnabled(String provider) {}
+
+            public void onProviderDisabled(String provider) {}
+          };
+          
+          locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+
     }
+    
+    private void locationChanged(android.location.Location location) {
+    	currentLocation = location;
+    }
+    
 
 	@Override
 	public void onClick(View v) {
@@ -46,9 +75,12 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	    case R.id.buttonStart:
 	      Log.d(TAG, "onClick: starting");
 	      Toast.makeText(this, "Parsing events...", Toast.LENGTH_SHORT).show();
-		  for(Event ev : runJSONParser())
+	      if(currentLocation == null) {
+	    	 break;
+	      }
+		  for(Event ev : runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude()))
 		  {
-			  Log.d(TAG, ev.getName() + " - " + ev.getStart_timeframe_date().toString());
+			  Log.d(TAG, ev.getName() + " - " + ev.getOrganization().getOwner().getUsername());
 		  }
 	      break;
 	    case R.id.buttonStop:
@@ -78,10 +110,10 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         return null;
     }
 	
-	public List<Event> runJSONParser() {
+	public List<Event> runJSONParser(double latitude, double longitude) {
 		List<Event> events = new ArrayList<Event>();
         try{
-        	InputStream source = getJSONData("http://slyduck.com/api/events/near/33.417817,-111.934424/?radius=200");
+        	InputStream source = getJSONData("http://slyduck.com/api/events/near/" + latitude + "," + longitude + "/?radius=200");
         	Gson gson = new Gson();
         	Reader reader = new InputStreamReader(source);
         	events = gson.fromJson(reader, new TypeToken<ArrayList<Event>>(){}.getType());
