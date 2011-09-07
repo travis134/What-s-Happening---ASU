@@ -1,0 +1,42 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+<meta charset="utf-8" /> 
+<title>Events</title>
+</head>
+<body>
+<h1>Events near {{ latitude }}, {{ longitude}}</h1>
+<h2>with radius {{ radius }}, and delay {{ delay }}</h2>
+<div>
+<ul>
+{% for e in events %}
+<li>
+<ul>
+<h3>{{ e.name }}</h3>
+<li>Description: {{ e.description }}</li>
+<li>Start Timeframe {{ e.start_timeframe }}</li>
+<li>End Timeframe {{ e.end_timeframe }}</li>
+<li><h4>{{ e.location }}</h4>
+<ul>
+<li><h5>{{ e.location.building }}</h5>
+<ul>
+<li>Abbreviation: {{ e.location.building.abbreviation }}</li>
+<li>Coordinate: {{ e.location.building.latitude }}, {{ e.location.building.longitude }}</li>
+</ul>
+<li>Room: {{ e.location.room }}</li>
+</ul>
+</li>
+<li><h4>{{ e.organization }}</h4> 
+<ul>
+<li>Owner: {{ e.organization.owner.username }}</li>
+<li>Description: {{ e.organization.description }}</li>
+<li>Website: {{ e.organization.website }}</li>
+</ul>
+</li>
+</ul>
+</li>
+{% endfor %}
+</ul>
+</div>
+</body> 
+</html> 
