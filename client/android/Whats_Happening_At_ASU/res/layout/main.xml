@@ -2,8 +2,10 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    >
-    <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/buttonStart" android:text="Start"></Button>
-    <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stop" android:id="@+id/buttonStop"></Button>
+    android:layout_height="fill_parent" android:background="@drawable/asu" android:padding="20px">
+    <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/buttonSearch" android:text="Search"></Button>
+    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:id="@+id/radiusLabel" android:text="Radius"></TextView>
+    <SeekBar android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/radiusBar" android:max="500" android:progress="125"></SeekBar>
+    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:id="@+id/delayLabel" android:text="Delay"></TextView>
+    <SeekBar android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/delayBar" android:progress="1440" android:max="2880"></SeekBar>
 </LinearLayout>
