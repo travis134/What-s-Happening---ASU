@@ -8,6 +8,7 @@ import java.util.Date;
 import android.util.Log;
 
 public class Event {
+	private final String TAG = "Events";
 	private String name, description, start_timeframe, end_timeframe;
 	private Date start_timeframe_date, end_timeframe_date;
 	private Location location;
@@ -35,7 +36,7 @@ public class Event {
 			try {
 				this.start_timeframe_date = formatter.parse(this.start_timeframe);
 			} catch (ParseException e) {
-				Log.e(Whats_Happening_At_ASUActivity.TAG, "Couldn't parse star_timeframe date");
+				Log.e(TAG, "Couldn't parse star_timeframe date");
 			}
 		}
 		return this.start_timeframe_date;
@@ -51,7 +52,7 @@ public class Event {
 		try {
 			this.start_timeframe_date = formatter.parse(this.start_timeframe);
 		} catch (ParseException e) {
-			Log.e(Whats_Happening_At_ASUActivity.TAG, "Couldn't parse star_timeframe date");
+			Log.e(TAG, "Couldn't parse star_timeframe date");
 		}
 	}
 	
@@ -61,7 +62,7 @@ public class Event {
 			try {
 				this.end_timeframe_date = formatter.parse(this.end_timeframe);
 			} catch (ParseException e) {
-				Log.e(Whats_Happening_At_ASUActivity.TAG, "Couldn't parse end_timeframe date");
+				Log.e(TAG, "Couldn't parse end_timeframe date");
 			}
 		}
 		return this.end_timeframe_date;
@@ -77,7 +78,7 @@ public class Event {
 		try {
 			this.end_timeframe_date = formatter.parse(this.end_timeframe);
 		} catch (ParseException e) {
-			Log.e(Whats_Happening_At_ASUActivity.TAG, "Couldn't parse end_timeframe date");
+			Log.e(TAG, "Couldn't parse end_timeframe date");
 		}
 	}
 	
