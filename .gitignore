@@ -7,3 +7,7 @@
 *.pot
 *.pyc
 local_settings.py
+
+#Android junk files
+bin
+gen
