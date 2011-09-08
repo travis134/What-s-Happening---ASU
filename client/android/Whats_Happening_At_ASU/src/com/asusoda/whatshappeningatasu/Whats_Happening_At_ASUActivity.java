@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +15,9 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.location.Criteria;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -25,6 +28,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -36,25 +41,26 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-public class Whats_Happening_At_ASUActivity extends Activity implements OnClickListener, OnSeekBarChangeListener {
+public class Whats_Happening_At_ASUActivity extends Activity implements OnClickListener, OnSeekBarChangeListener, OnItemClickListener {
 	//Debug tag
 	private final String TAG = "WHAA";
 	
 	//UI
 	private Button buttonSearch;
+	private TextView textViewRadius, textViewDelay;
 	private SeekBar seekBarRadius, seekBarDelay;
 	private ListView listViewEvents;
 	
 	//Data
 	private android.location.Location currentLocation;
 	private EventAdapter eventAdapter;
-	private int radius = 125; //125 meters
-	private int delay = 1440; //1440 minutes, 1 day
-	private List<Event> eventsList = new ArrayList<Event>();
+	private int radius, delay;
+	private List<Event> eventsList;
 	private LocationManager locationManager;
 	private LocationListener listenerCoarse;
 	private LocationListener listenerFine;
-	private boolean locationAvailable = true;
+	private boolean locationAvailable;
+	DecimalFormat decimalFormat;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -66,15 +72,27 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         //Link UI handles
         Log.d(TAG, "Linking UI handles...");
         buttonSearch = (Button)findViewById(R.id.buttonWhatsHappening);
-        seekBarRadius = (SeekBar)findViewById(R.id.radiusBar);
-        seekBarDelay = (SeekBar)findViewById(R.id.delayBar);
-        listViewEvents = (ListView)findViewById(R.id.listEvents);
+        textViewRadius = (TextView)findViewById(R.id.textViewRadius);
+        seekBarRadius = (SeekBar)findViewById(R.id.seekBarRadius);
+        textViewDelay = (TextView)findViewById(R.id.textViewDelay);
+        seekBarDelay = (SeekBar)findViewById(R.id.seekBarDelay);
+        listViewEvents = (ListView)findViewById(R.id.listViewEvents);
+        
+        //Set default values
+        radius = 125; //125 meters
+        delay = 1440; //1440 minutes, 1 day
+        eventsList = new ArrayList<Event>();
+        locationAvailable = true;
+        decimalFormat = new DecimalFormat("#.##");;
+        textViewRadius.setText("Radius: " + formatRadius(radius));
+        textViewDelay.setText("Delay: " + formatDelay(delay));
         
         //Register listeners
         Log.d(TAG, "Registering listeners...");
         buttonSearch.setOnClickListener(this);
         seekBarRadius.setOnSeekBarChangeListener(this);
         seekBarDelay.setOnSeekBarChangeListener(this);
+        listViewEvents.setOnItemClickListener(this);
         
         //Register adapters
         Log.d(TAG, "Registering adapters...");
@@ -203,16 +221,18 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	public void onClick(View v) {
 	    switch (v.getId()) {
 	    case R.id.buttonWhatsHappening:
-	      if(locationAvailable || currentLocation == null) {
+	      if(currentLocation == null) {
 	    	  Toast.makeText(this, "No location found, make sure GPS is turned on.", Toast.LENGTH_LONG).show();
 	    	 break;
 	      }
 	      Toast.makeText(this, "Working...", Toast.LENGTH_SHORT).show();
-	      Log.i(TAG, "onClick: Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ")");
+	      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ")");
 	      eventAdapter.clear();
 	      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
-	      for(Event ev : eventsList)
-		  {
+	      if(eventsList.isEmpty()){ 
+	    	  Toast.makeText(this, "No events found", Toast.LENGTH_SHORT).show();
+	      }
+	      for(Event ev : eventsList) {
 	    	  eventAdapter.add(ev);
 			  Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
 		  }
@@ -252,21 +272,56 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         }catch(Exception ex){
             ex.printStackTrace();
         }
+        if(eventsList == null) {
+        	eventsList = new ArrayList<Event>();
+        }
     }
 
 	@Override
 	public void onProgressChanged(SeekBar seekBar, int progress,
 			boolean fromUser) {
 		switch (seekBar.getId()) {
-		case R.id.delayBar:
+		case R.id.seekBarDelay:
 			delay = progress;
+			if(delay < 30) {
+				delay = 30;
+			}
+	        textViewDelay.setText("Delay: " + formatDelay(delay));
 			break;
-		case R.id.radiusBar:
+		case R.id.seekBarRadius:
 			radius = progress;
+			if(radius < 10) {
+				radius = 10;
+			}
+			textViewRadius.setText("Radius: " + formatRadius(radius));
 			break;
 		}
 	}
 
+	private String formatDelay(int inDelay)
+	{
+		String temp = inDelay + " minutes";
+		
+		if(inDelay >= 60 && inDelay < 1440) {
+			temp = decimalFormat.format(((double)inDelay/60.0d)) + " hours";
+		}else if(delay >= 1440) {
+			temp = decimalFormat.format(((double)inDelay/1440.0d)) + " days";
+		}
+		
+		return temp;
+	}
+	
+	private String formatRadius(int inRadius)
+	{
+		String temp = inRadius + " meters";
+		
+		if(inRadius >= 100) {
+			temp = decimalFormat.format(((double)inRadius/1000.0d)) + " kilometers";
+		}
+		
+		return temp;
+	}
+	
 	@Override
 	public void onStartTrackingTouch(SeekBar seekBar) {
 		// TODO Auto-generated method stub
@@ -297,12 +352,34 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
                 }
                 Event e = events.get(position);
                 if (e != null) {
-                        TextView textViewEventName = (TextView) v.findViewById(R.id.labelEventItem);
+                        TextView textViewEventName = (TextView) v.findViewById(R.id.textViewEventName);
+                        TextView textViewEventOrganization = (TextView) v.findViewById(R.id.textViewEventOrganization);
+                        TextView textViewEventLocation = (TextView) v.findViewById(R.id.textViewEventLocation);
+                        TextView textViewEventStartTime = (TextView) v.findViewById(R.id.textViewEventStartTime);
                         if (textViewEventName != null) {
-                              textViewEventName.setText(e.toString());
+                              textViewEventName.setText(e.getName());
+                        }
+                        if (textViewEventOrganization != null) {
+                            textViewEventOrganization.setText(e.getOrganization().getName());
+                        }
+                        if (textViewEventLocation != null) {
+                            textViewEventLocation.setText("Where: " + e.getLocation().toString());
+                        }
+                        if (textViewEventStartTime != null) {
+                            textViewEventStartTime.setText("When: " + e.getStart_timeframe());
                         }
                 }
                 return v;
         }
+	}
+
+	@Override
+	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
+		try {
+		Intent mapCall = new Intent(Intent.ACTION_VIEW, eventsList.get(arg2).getLocation().getBuilding().getDirectionsFrom(currentLocation));
+		startActivity(mapCall); 
+		}catch(ActivityNotFoundException ex) {
+			ex.printStackTrace();
+		}
 	}
 }

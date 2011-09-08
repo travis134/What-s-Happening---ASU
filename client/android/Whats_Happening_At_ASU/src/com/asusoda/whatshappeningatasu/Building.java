@@ -1,5 +1,7 @@
 package com.asusoda.whatshappeningatasu;
 
+import android.net.Uri;
+
 public class Building {
 	private String abbreviation, name;
 	private float latitude, longitude;
@@ -34,6 +36,14 @@ public class Building {
 	
 	public void setLongitude(float longitude) {
 		this.longitude = longitude;
+	}
+	
+	public Uri getGeoUri() {
+		return Uri.parse("geo:" + this.getLatitude() + "," + this.getLongitude() + "?z=18");
+	}
+	
+	public Uri getDirectionsFrom(android.location.Location startLocation){
+		return Uri.parse("http://maps.google.com/maps?saddr=" + startLocation.getLatitude() + "," + startLocation.getLongitude() + "&daddr=" + this.getLatitude() + "," + this.getLongitude() + "&dirflg=w");
 	}
 	
 	@Override

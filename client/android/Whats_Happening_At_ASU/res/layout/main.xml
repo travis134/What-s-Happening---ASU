@@ -3,12 +3,12 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent" android:background="@drawable/asu" android:padding="15dip">
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/labelBeta" android:text="beta" android:layout_gravity="center" android:background="#CCFF0000" android:textColor="#FFFFFFFF" android:textSize="12dip"></TextView>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/textViewBeta" android:text="beta" android:layout_gravity="center" android:background="#CCFF0000" android:textColor="#FFFFFFFF" android:textSize="12dip"></TextView>
     <Button android:text="What's Happening?" android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/buttonWhatsHappening"></Button>
-    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:text="Radius" android:id="@+id/labelRadius" android:textColor="#FFFFCC00" android:background="#AA000000"></TextView>
-    <SeekBar android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/radiusBar" android:max="500" android:progress="125"></SeekBar>
-    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:text="Delay" android:id="@+id/labelDelay" android:textColor="#FFFFCC00" android:background="#AA000000"></TextView>
-    <SeekBar android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/delayBar" android:progress="1440" android:max="2880"></SeekBar>
-    <TextView android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/labelEvents" android:text="Events" android:textColor="#FFFFCC00" android:background="#AA000000"></TextView>
-    <ListView android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/listEvents" android:background="#AA000000"></ListView>
+    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:text="Radius" android:id="@+id/textViewRadius" android:textColor="#FFFFCC00" android:background="#AA000000"></TextView>
+    <SeekBar android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/seekBarRadius" android:max="500" android:progress="125"></SeekBar>
+    <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:text="Delay" android:id="@+id/textViewDelay" android:textColor="#FFFFCC00" android:background="#AA000000"></TextView>
+    <SeekBar android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/seekBarDelay" android:progress="1440" android:max="2880"></SeekBar>
+    <TextView android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/textViewEvents" android:textColor="#FFFFCC00" android:background="#AA000000" android:text="Events (tap for directions)"></TextView>
+    <ListView android:layout_height="wrap_content" android:layout_width="match_parent" android:id="@+id/listViewEvents" android:background="#AA000000"></ListView>
 </LinearLayout>
