@@ -15,8 +15,10 @@ import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Activity;
 import android.content.Context;
+import android.location.Criteria;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.location.LocationProvider;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -35,80 +37,186 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 public class Whats_Happening_At_ASUActivity extends Activity implements OnClickListener, OnSeekBarChangeListener {
-	private final String TAG = "Whats Happening @ ASU";
+	//Debug tag
+	private final String TAG = "WHAA";
+	
+	//UI
+	private Button buttonSearch;
+	private SeekBar seekBarRadius, seekBarDelay;
+	private ListView listViewEvents;
+	
+	//Data
 	private android.location.Location currentLocation;
-	Button buttonSearch;
-	SeekBar radiusBar, delayBar;
-	ListView listEvents;
-	private int radius = 125;
-	private int delay = 1440;
-	private EventAdapter event_adapter;
-	List<Event> event_list = new ArrayList<Event>();
+	private EventAdapter eventAdapter;
+	private int radius = 125; //125 meters
+	private int delay = 1440; //1440 minutes, 1 day
+	private List<Event> eventsList = new ArrayList<Event>();
+	private LocationManager locationManager;
+	private LocationListener listenerCoarse;
+	private LocationListener listenerFine;
+	private boolean locationAvailable = true;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
-    	
-    	Log.i(TAG, "Opened the app");
+    	//Set default layout
+    	Log.d(TAG, "Starting the app...");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         
+        //Link UI handles
+        Log.d(TAG, "Linking UI handles...");
         buttonSearch = (Button)findViewById(R.id.buttonWhatsHappening);
-        radiusBar = (SeekBar)findViewById(R.id.radiusBar);
-        delayBar = (SeekBar)findViewById(R.id.delayBar);
-        listEvents = (ListView)findViewById(R.id.listEvents);
+        seekBarRadius = (SeekBar)findViewById(R.id.radiusBar);
+        seekBarDelay = (SeekBar)findViewById(R.id.delayBar);
+        listViewEvents = (ListView)findViewById(R.id.listEvents);
         
+        //Register listeners
+        Log.d(TAG, "Registering listeners...");
         buttonSearch.setOnClickListener(this);
-        radiusBar.setOnSeekBarChangeListener(this);
-        delayBar.setOnSeekBarChangeListener(this);
-        event_adapter = new EventAdapter(this,R.layout.event_item, event_list);
-        listEvents.setAdapter(event_adapter);
+        seekBarRadius.setOnSeekBarChangeListener(this);
+        seekBarDelay.setOnSeekBarChangeListener(this);
         
-        Log.i(TAG, "Creating location manager...");
-        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        //Register adapters
+        Log.d(TAG, "Registering adapters...");
+        eventAdapter = new EventAdapter(this,R.layout.event_item, eventsList);
+        listViewEvents.setAdapter(eventAdapter);
         
-        Log.i(TAG, "Creating location listener...");
-        LocationListener locationListener = new LocationListener() {
+        //Setup location services
+        registerLocationListeners();
+    }
+    
+    @Override
+    protected void onPause() {
+    	//Stop storing location
+    	Log.d(TAG, "Stopping location services...");
+    	locationManager.removeUpdates(listenerCoarse);
+    	locationManager.removeUpdates(listenerFine);
+    	super.onPause();
+    }
+    
+    private void registerLocationListeners() {
+        //Setup location manager
+    	Log.d(TAG, "Creating location manager...");
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        
+        //Setup location provider criterion
+        Log.d(TAG, "Creating location criterion...");
+        Criteria fine = new Criteria();
+        fine.setAccuracy(Criteria.ACCURACY_FINE);
+        Criteria coarse = new Criteria();
+        coarse.setAccuracy(Criteria.ACCURACY_COARSE);
+        
+        //Store last known location
+        Log.d(TAG, "Storing last known location...");
+        currentLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(fine,  true));
+        
+        //Setup location listeners
+        Log.d(TAG, "Creating location listeners...");
+        if (listenerFine == null || listenerCoarse == null) {
+        	createLocationListeners();
+        }
+
+        //Register location manager with coarse location listener, poll every 500ms until fix is accurate to 1000m
+        Log.d(TAG, "Registering location manager with coarse location listener...");
+        locationManager.requestLocationUpdates(locationManager.getBestProvider(coarse, true), 500, 1000, listenerCoarse);
+          
+      	//Register location manager with fine location listener, poll every 500ms until fix is accurate to 50m
+        Log.d(TAG, "Registering location manager with fine location listener...");
+        locationManager.requestLocationUpdates(locationManager.getBestProvider(fine, true), 500, 50, listenerFine);
+    }
+    
+    private void createLocationListeners() {
+    	//Setup coarse location listener
+    	Log.d(TAG, "Creating coarse location listener...");
+    	listenerCoarse = new LocationListener() {
         	
         	public void onLocationChanged(android.location.Location location) {
-              locationChanged(location);
+        		//Get GPS fix
+        		Log.d(TAG, "Location changed: (" + location.getLatitude() + ", " + location.getLongitude() + ")");
+            	currentLocation = location;
+            	if (location.getAccuracy() > 1000 && location.hasAccuracy()) {
+            		//Fix acquired, stop storing location
+            		Log.d(TAG, "GPS Fix acquired");
+            		locationManager.removeUpdates(this);
+            	}
             }
 
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            	switch(status) {
+            	case LocationProvider.OUT_OF_SERVICE:
+            	case LocationProvider.TEMPORARILY_UNAVAILABLE:
+            		//Coarse GPS unavailable
+            		Log.d(TAG, "Coarse GPS unavailable");
+            		locationAvailable = false;
+            		break;
+            	case LocationProvider.AVAILABLE:
+            		//Coarse GPS available
+            		Log.d(TAG, "Coarse GPS available");
+            		locationAvailable = true;
+            		break;
+            	}
+            }
 
             public void onProviderEnabled(String provider) {}
 
             public void onProviderDisabled(String provider) {}
           };
           
-          Log.i(TAG, "Registering location manager with location listener...");
-          locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-          currentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        //Setup fine location listener
+      	Log.d(TAG, "Creating fine location listener...");
+      	listenerFine = new LocationListener() {
+          	
+          	public void onLocationChanged(android.location.Location location) {
+          		//Get GPS fix
+          		Log.d(TAG, "Location changed: (" + location.getLatitude() + ", " + location.getLongitude() + ")");
+              	currentLocation = location;
+              	if (location.getAccuracy() > 1000 && location.hasAccuracy()) {
+              		//Fix acquired, stop storing location
+              		Log.d(TAG, "GPS Fix acquired");
+              		locationManager.removeUpdates(this);
+              	}
+              }
+
+              public void onStatusChanged(String provider, int status, Bundle extras) {
+              	switch(status) {
+              	case LocationProvider.OUT_OF_SERVICE:
+              	case LocationProvider.TEMPORARILY_UNAVAILABLE:
+              		//Fine GPS unavailable
+              		Log.d(TAG, "Fine GPS unavailable");
+              		locationAvailable = false;
+              		break;
+              	case LocationProvider.AVAILABLE:
+              		//Fine GPS available
+            		Log.d(TAG, "Fine GPS available");
+              		locationAvailable = true;
+              		break;
+              	}
+              }
+
+              public void onProviderEnabled(String provider) {}
+
+              public void onProviderDisabled(String provider) {}
+            };
     }
-    
-    private void locationChanged(android.location.Location location) {
-    	Log.i(TAG, "Location changed: (" + location.getLatitude() + ", " + location.getLongitude() + ")");
-    	currentLocation = location;
-    }
-    
 
 	@Override
 	public void onClick(View v) {
 	    switch (v.getId()) {
 	    case R.id.buttonWhatsHappening:
-	      if(currentLocation == null) {
+	      if(locationAvailable || currentLocation == null) {
 	    	  Toast.makeText(this, "No location found, make sure GPS is turned on.", Toast.LENGTH_LONG).show();
 	    	 break;
 	      }
 	      Toast.makeText(this, "Working...", Toast.LENGTH_SHORT).show();
 	      Log.i(TAG, "onClick: Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ")");
-	      event_adapter.clear();
+	      eventAdapter.clear();
 	      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
-	      for(Event ev : event_list)
+	      for(Event ev : eventsList)
 		  {
-	    	  event_adapter.add(ev);
+	    	  eventAdapter.add(ev);
 			  Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
 		  }
-		  event_adapter.notifyDataSetChanged();
+		  eventAdapter.notifyDataSetChanged();
 	      break;
 	    }
 	  }
@@ -135,12 +243,12 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     }
 	
 	public void runJSONParser(double latitude, double longitude) {
-		event_list.clear();
+		eventsList.clear();
         try{
         	InputStream source = getJSONData("http://slyduck.com/api/events/near/" + latitude + "," + longitude + "/?radius=" + radius + "&delay=" + delay);
         	Gson gson = new Gson();
         	Reader reader = new InputStreamReader(source);
-        	event_list = gson.fromJson(reader, new TypeToken<ArrayList<Event>>(){}.getType());
+        	eventsList = gson.fromJson(reader, new TypeToken<ArrayList<Event>>(){}.getType());
         }catch(Exception ex){
             ex.printStackTrace();
         }
@@ -189,9 +297,9 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
                 }
                 Event e = events.get(position);
                 if (e != null) {
-                        TextView tt = (TextView) v.findViewById(R.id.labelEventItem);
-                        if (tt != null) {
-                              tt.setText(e.toString());
+                        TextView textViewEventName = (TextView) v.findViewById(R.id.labelEventItem);
+                        if (textViewEventName != null) {
+                              textViewEventName.setText(e.toString());
                         }
                 }
                 return v;
