@@ -35,4 +35,9 @@ public class Building {
 	public void setLongitude(float longitude) {
 		this.longitude = longitude;
 	}
+	
+	@Override
+	public String toString() {
+		return this.abbreviation;
+	}
 }

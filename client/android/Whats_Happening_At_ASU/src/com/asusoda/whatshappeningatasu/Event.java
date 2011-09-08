@@ -97,4 +97,9 @@ public class Event {
 	public void setOrganization(Organization organization) {
 		this.organization = organization;
 	}
+	
+	@Override
+	public String toString() {
+		return this.name + " at " + this.location.toString();
+	}
 }

@@ -19,4 +19,9 @@ public class Location {
 	public void setRoom(String room) {
 		this.room = room;
 	}
+	
+	@Override
+	public String toString() {
+		return this.building.toString() + " - " + this.room;
+	}
 }

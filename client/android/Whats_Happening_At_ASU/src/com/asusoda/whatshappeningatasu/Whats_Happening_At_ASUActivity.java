@@ -19,11 +19,16 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -34,8 +39,11 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	private android.location.Location currentLocation;
 	Button buttonSearch;
 	SeekBar radiusBar, delayBar;
+	ListView listEvents;
 	private int radius = 125;
 	private int delay = 1440;
+	private EventAdapter event_adapter;
+	List<Event> event_list = new ArrayList<Event>();
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -44,13 +52,16 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         
-        buttonSearch = (Button)findViewById(R.id.buttonSearch);
+        buttonSearch = (Button)findViewById(R.id.buttonWhatsHappening);
         radiusBar = (SeekBar)findViewById(R.id.radiusBar);
         delayBar = (SeekBar)findViewById(R.id.delayBar);
+        listEvents = (ListView)findViewById(R.id.listEvents);
         
         buttonSearch.setOnClickListener(this);
         radiusBar.setOnSeekBarChangeListener(this);
         delayBar.setOnSeekBarChangeListener(this);
+        event_adapter = new EventAdapter(this,R.layout.event_item, event_list);
+        listEvents.setAdapter(event_adapter);
         
         Log.i(TAG, "Creating location manager...");
         LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
@@ -71,7 +82,7 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
           
           Log.i(TAG, "Registering location manager with location listener...");
           locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-
+          currentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
     }
     
     private void locationChanged(android.location.Location location) {
@@ -83,19 +94,21 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	@Override
 	public void onClick(View v) {
 	    switch (v.getId()) {
-	    case R.id.buttonSearch:
+	    case R.id.buttonWhatsHappening:
 	      if(currentLocation == null) {
 	    	  Toast.makeText(this, "No location found, make sure GPS is turned on.", Toast.LENGTH_LONG).show();
 	    	 break;
 	      }
+	      Toast.makeText(this, "Working...", Toast.LENGTH_SHORT).show();
 	      Log.i(TAG, "onClick: Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ")");
-	      Toast.makeText(this, "Searching for events within a " + radius + "m radius...", Toast.LENGTH_LONG).show();
-		  List<Event> events = runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
-	      for(Event ev : events)
+	      event_adapter.clear();
+	      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
+	      for(Event ev : event_list)
 		  {
+	    	  event_adapter.add(ev);
 			  Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
 		  }
-		  Toast.makeText(this, "Found " + events.size() + " events...", Toast.LENGTH_LONG).show();
+		  event_adapter.notifyDataSetChanged();
 	      break;
 	    }
 	  }
@@ -121,17 +134,16 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         return null;
     }
 	
-	public List<Event> runJSONParser(double latitude, double longitude) {
-		List<Event> events = new ArrayList<Event>();
+	public void runJSONParser(double latitude, double longitude) {
+		event_list.clear();
         try{
         	InputStream source = getJSONData("http://slyduck.com/api/events/near/" + latitude + "," + longitude + "/?radius=" + radius + "&delay=" + delay);
         	Gson gson = new Gson();
         	Reader reader = new InputStreamReader(source);
-        	events = gson.fromJson(reader, new TypeToken<ArrayList<Event>>(){}.getType());
+        	event_list = gson.fromJson(reader, new TypeToken<ArrayList<Event>>(){}.getType());
         }catch(Exception ex){
             ex.printStackTrace();
         }
-        return events;
     }
 
 	@Override
@@ -157,5 +169,32 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	public void onStopTrackingTouch(SeekBar seekBar) {
 		// TODO Auto-generated method stub
 		
+	}
+	
+	private class EventAdapter extends ArrayAdapter<Event> {
+
+        private List<Event> events;
+
+        public EventAdapter(Context context, int textViewResourceId, List<Event> items) {
+                super(context, textViewResourceId, items);
+                this.events = items;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+                View v = convertView;
+                if (v == null) {
+                    LayoutInflater vi = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    v = vi.inflate(R.layout.event_item, null);
+                }
+                Event e = events.get(position);
+                if (e != null) {
+                        TextView tt = (TextView) v.findViewById(R.id.labelEventItem);
+                        if (tt != null) {
+                              tt.setText(e.toString());
+                        }
+                }
+                return v;
+        }
 	}
 }
