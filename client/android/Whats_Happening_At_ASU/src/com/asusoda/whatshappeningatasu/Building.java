@@ -42,8 +42,8 @@ public class Building {
 		return Uri.parse("geo:" + this.getLatitude() + "," + this.getLongitude() + "?z=18");
 	}
 	
-	public Uri getDirectionsFrom(android.location.Location startLocation){
-		return Uri.parse("http://maps.google.com/maps?saddr=" + startLocation.getLatitude() + "," + startLocation.getLongitude() + "&daddr=" + this.getLatitude() + "," + this.getLongitude() + "&dirflg=w");
+	public Uri getDirections(){
+		return Uri.parse("http://maps.google.com/maps?daddr=" + this.getLatitude() + "," + this.getLongitude() + "&dirflg=w");
 	}
 	
 	@Override

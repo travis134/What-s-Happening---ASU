@@ -376,9 +376,10 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	@Override
 	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
 		try {
-		Intent mapCall = new Intent(Intent.ACTION_VIEW, eventsList.get(arg2).getLocation().getBuilding().getDirectionsFrom(currentLocation));
+		Intent mapCall = new Intent(Intent.ACTION_VIEW, eventsList.get(arg2).getLocation().getBuilding().getDirections());
 		startActivity(mapCall); 
 		}catch(ActivityNotFoundException ex) {
+			Toast.makeText(this, "No maps app found, please install Google Maps.", Toast.LENGTH_LONG).show();
 			ex.printStackTrace();
 		}
 	}
