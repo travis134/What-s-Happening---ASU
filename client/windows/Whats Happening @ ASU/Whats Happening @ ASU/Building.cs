@@ -11,5 +11,10 @@ namespace Whats_Happening___ASU
         public string name { get; set; }
         public float latitude { get; set; }
         public float longitude { get; set; }
+
+        public override string ToString()
+        {
+            return this.abbreviation;
+        }
     }
 }

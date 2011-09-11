@@ -9,5 +9,10 @@ namespace Whats_Happening___ASU
     {
         public Building building { get; set; }
         public string room { get; set; }
+
+        public override string ToString()
+        {
+            return this.building.ToString() + " - " + this.room;
+        }
     }
 }

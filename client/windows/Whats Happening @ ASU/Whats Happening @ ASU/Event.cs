@@ -35,5 +35,10 @@ namespace Whats_Happening___ASU
         private DateTime end_timeframe_datetime;
         public Location location { get; set; }
         public Organization organization { get; set; }
+
+        public override string ToString()
+        {
+            return this.name + ", " + this.location.ToString();
+        }
     }
 }

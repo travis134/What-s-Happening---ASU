@@ -28,6 +28,8 @@ namespace Whats_Happening___ASU
         {
             InitializeComponent();
 
+            List<Event> events;
+
             using(WebClient wc = new WebClient())
             {
                 //Download JSON formatted events
@@ -35,13 +37,20 @@ namespace Whats_Happening___ASU
                 
                 //Deserialize JSON to list of events
                 JavaScriptSerializer ser = new JavaScriptSerializer();
-                List<Event> events = ser.Deserialize<List<Event>>(json);
-                
+                events = ser.Deserialize<List<Event>>(json);
             }
             
+            if (events != null)
+            {
+                ListBox listBoxEvents = new ListBox() { };
+                listBoxEvents.ItemsSource = events;
+                Grid.SetRow(listBoxEvents, 0);
+                Grid.SetColumn(listBoxEvents, 0);
+                Results.RowDefinitions.Add(new RowDefinition());
+                Results.ColumnDefinitions.Add(new ColumnDefinition());
+                Results.Children.Add(listBoxEvents);
+            }
             
-
-
             //Authorization code for Intel AppUp(TM) software
             com.intel.adp.AdpApplication app;
             try
