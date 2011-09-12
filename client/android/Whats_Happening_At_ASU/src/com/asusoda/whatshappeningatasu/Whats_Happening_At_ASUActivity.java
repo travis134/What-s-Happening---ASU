@@ -25,6 +25,9 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -47,7 +50,7 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	
 	//UI
 	private Button buttonSearch;
-	private TextView textViewRadius, textViewDelay;
+	private TextView textViewRadius, textViewDelay, textViewEvents;
 	private SeekBar seekBarRadius, seekBarDelay;
 	private ListView listViewEvents;
 	
@@ -59,7 +62,7 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	private LocationManager locationManager;
 	private LocationListener listenerCoarse;
 	private LocationListener listenerFine;
-	private boolean locationAvailable;
+	private boolean locationAvailable, formatMetric;
 	DecimalFormat decimalFormat;
 	
     @Override
@@ -76,16 +79,39 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         seekBarRadius = (SeekBar)findViewById(R.id.seekBarRadius);
         textViewDelay = (TextView)findViewById(R.id.textViewDelay);
         seekBarDelay = (SeekBar)findViewById(R.id.seekBarDelay);
+        textViewEvents = (TextView)findViewById(R.id.textViewEvents);
         listViewEvents = (ListView)findViewById(R.id.listViewEvents);
         
         //Set default values
         radius = 125; //125 meters
-        delay = 1440; //1440 minutes, 1 day
+        delay = 60; //60 minutes
         eventsList = new ArrayList<Event>();
         locationAvailable = true;
-        decimalFormat = new DecimalFormat("#.##");;
+        formatMetric = false;
+        decimalFormat = new DecimalFormat("#.##");
+        
+        //Register adapters
+        Log.d(TAG, "Registering adapters...");
+        eventAdapter = new EventAdapter(this,R.layout.event_item, eventsList);
+        listViewEvents.setAdapter(eventAdapter);
+        
+        //Load any saved data
+        Log.d(TAG, "Loading any saved data...");
+        final SaveData data = (SaveData) getLastNonConfigurationInstance();
+        if(data != null) {
+        	radius = data.getRadius();
+        	delay = data.getDelay();
+        	formatMetric = data.getFormatMetric();
+        	eventsList = (ArrayList<Event>) data.getEventsList();
+        }
+        
+        //Setup UI values
+        Log.d(TAG, "Setting UI values...");
         textViewRadius.setText("Radius: " + formatRadius(radius));
         textViewDelay.setText("Delay: " + formatDelay(delay));
+    	seekBarRadius.setProgress(radius);
+    	seekBarDelay.setProgress(delay);
+    	populateEventsList();
         
         //Register listeners
         Log.d(TAG, "Registering listeners...");
@@ -93,11 +119,6 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         seekBarRadius.setOnSeekBarChangeListener(this);
         seekBarDelay.setOnSeekBarChangeListener(this);
         listViewEvents.setOnItemClickListener(this);
-        
-        //Register adapters
-        Log.d(TAG, "Registering adapters...");
-        eventAdapter = new EventAdapter(this,R.layout.event_item, eventsList);
-        listViewEvents.setAdapter(eventAdapter);
         
         //Setup location services
         registerLocationListeners();
@@ -112,6 +133,35 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     	super.onPause();
     }
     
+    @Override
+    public Object onRetainNonConfigurationInstance() {
+    	final SaveData data = new SaveData(radius, delay, formatMetric, (ArrayList<Event>)eventsList);
+    	return data;
+    }
+    
+    private void populateEventsList() {
+    	if(eventsList == null){
+    		return;
+    	}
+    	
+    	if(eventsList.isEmpty())
+    	{
+    		Toast.makeText(this, "No events found", Toast.LENGTH_SHORT).show();
+        	listViewEvents.setVisibility(8);
+        	textViewEvents.setVisibility(8);
+    	}else{
+    		Log.d(TAG, "b1");
+    		listViewEvents.setVisibility(0);
+        	textViewEvents.setVisibility(0);
+        	Log.d(TAG, "b2");  
+        	for(Event ev : eventsList) {
+        		eventAdapter.add(ev);
+        		Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
+        		}
+        	Log.d(TAG, "b3");
+        	eventAdapter.notifyDataSetChanged();
+    	}
+    }
     private void registerLocationListeners() {
         //Setup location manager
     	Log.d(TAG, "Creating location manager...");
@@ -223,23 +273,37 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	    case R.id.buttonWhatsHappening:
 	      if(currentLocation == null) {
 	    	  Toast.makeText(this, "No location found, make sure GPS is turned on.", Toast.LENGTH_LONG).show();
-	    	 break;
+	    	  listViewEvents.setVisibility(8);
+	    	  textViewEvents.setVisibility(8);
+	    	  break;
 	      }
 	      Toast.makeText(this, "Working...", Toast.LENGTH_SHORT).show();
-	      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ")");
+	      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ") with a delay of " + delay);
 	      eventAdapter.clear();
 	      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
-	      if(eventsList.isEmpty()){ 
-	    	  Toast.makeText(this, "No events found", Toast.LENGTH_SHORT).show();
-	      }
-	      for(Event ev : eventsList) {
-	    	  eventAdapter.add(ev);
-			  Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
-		  }
-		  eventAdapter.notifyDataSetChanged();
+	      populateEventsList();
 	      break;
 	    }
 	  }
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		MenuInflater inflater = getMenuInflater();
+		inflater.inflate(R.layout.whaa_menu, menu);
+		return true;
+	}
+	
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch(item.getItemId()) {
+		case R.id.unit:
+			formatMetric = !formatMetric;
+			textViewRadius.setText("Radius: " + formatRadius(radius));
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+	}
 	
 	public InputStream getJSONData(String url) {
         DefaultHttpClient client = new DefaultHttpClient();
@@ -283,8 +347,22 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 		switch (seekBar.getId()) {
 		case R.id.seekBarDelay:
 			delay = progress;
-			if(delay < 30) {
+			if(delay < 60) {
 				delay = 30;
+			}else if(delay >= 60 && delay < 90) {
+				delay = 60;
+			}else if(delay >= 90 && delay < 120) {
+				delay = 90;
+			}else if(delay >= 120 && delay < 150) {
+				delay = 120;
+			}else if(delay >= 150 && delay < 180) {
+				delay = 150;
+			}else if(delay >= 180 && delay < 210) {
+				delay = 180;
+			}else if(delay >= 210 && delay < 240) {
+				delay = 210;
+			}else if(delay >= 240) {
+				delay = 240;
 			}
 	        textViewDelay.setText("Delay: " + formatDelay(delay));
 			break;
@@ -300,26 +378,44 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 
 	private String formatDelay(int inDelay)
 	{
-		String temp = inDelay + " minutes";
+		String unit;
+		double temp = inDelay;
 		
-		if(inDelay >= 60 && inDelay < 1440) {
-			temp = decimalFormat.format(((double)inDelay/60.0d)) + " hours";
-		}else if(delay >= 1440) {
-			temp = decimalFormat.format(((double)inDelay/1440.0d)) + " days";
+		if(temp >= 60)
+		{
+			temp /= 60.0d;
+			unit = "hour(s)";
+		}else{
+			unit = "minute(s)";
 		}
-		
-		return temp;
+
+		return decimalFormat.format(temp) + " " + unit;
 	}
 	
 	private String formatRadius(int inRadius)
 	{
-		String temp = inRadius + " meters";
+		String unit;
+		double temp = inRadius;
 		
-		if(inRadius >= 100) {
-			temp = decimalFormat.format(((double)inRadius/1000.0d)) + " kilometers";
+		if(formatMetric)
+		{
+			if(temp >= 100) {
+				temp /= 1000.0d;
+				unit = "kilometer(s)";
+			}else{
+				unit = "meter(s)";
+			}
+		}else{
+			if(temp >= 152.336) {
+				temp /= 1609.344d;
+				unit = "mile(s)";
+			}else{
+				temp /= 0.3048d;
+				unit = "feet";
+			}
 		}
 		
-		return temp;
+		return decimalFormat.format(temp) + " " + unit;
 	}
 	
 	@Override
