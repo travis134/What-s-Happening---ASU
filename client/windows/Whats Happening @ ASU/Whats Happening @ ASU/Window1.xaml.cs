@@ -39,7 +39,7 @@ namespace Whats_Happening___ASU
                 JavaScriptSerializer ser = new JavaScriptSerializer();
                 events = ser.Deserialize<List<Event>>(json);
             }
-            
+
             if (events != null)
             {
                 ListBox listBoxEvents = new ListBox() { };

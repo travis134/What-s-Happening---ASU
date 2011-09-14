@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" android:background="@drawable/background_landscape">
+    <LinearLayout android:layout_width="match_parent" android:id="@+id/linearLayout1" android:layout_height="wrap_content">
+        <LinearLayout android:id="@+id/linearLayout2" android:orientation="vertical" android:layout_width="fill_parent" android:layout_weight="1" android:padding="15dip" android:layout_height="fill_parent">
+            <TextView android:id="@+id/textViewRadius" android:text="Radius" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000"></TextView>
+            <SeekBar android:max="500" android:progress="125" android:id="@+id/seekBarRadius" android:layout_width="match_parent" android:layout_height="wrap_content"></SeekBar>
+            <TextView android:id="@+id/textViewDelay" android:text="Delay" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000"></TextView>
+            <SeekBar android:max="240" android:progress="60" android:id="@+id/seekBarDelay" android:layout_width="match_parent" android:layout_height="wrap_content"></SeekBar>
+            <Button android:id="@+id/buttonWhatsHappening" android:text="What's Happening?" android:layout_width="fill_parent" android:layout_height="wrap_content"></Button>
+        </LinearLayout>
+        <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:id="@+id/linearLayout3" android:layout_height="fill_parent" android:layout_weight="1" android:padding="15dip">
+            <TextView android:id="@+id/textViewEvents" android:text="Events (tap for directions)" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000"></TextView>
+            <ListView android:id="@+id/listViewEvents" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#AAFFFFFF" android:cacheColorHint="#00000000"></ListView>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

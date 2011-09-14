@@ -95,6 +95,16 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         eventAdapter = new EventAdapter(this,R.layout.event_item, eventsList);
         listViewEvents.setAdapter(eventAdapter);
         
+        //Register listeners
+        Log.d(TAG, "Registering listeners...");
+        buttonSearch.setOnClickListener(this);
+        seekBarRadius.setOnSeekBarChangeListener(this);
+        seekBarDelay.setOnSeekBarChangeListener(this);
+        listViewEvents.setOnItemClickListener(this);
+        
+        //Setup location services
+        registerLocationListeners();
+        
         //Load any saved data
         Log.d(TAG, "Loading any saved data...");
         final SaveData data = (SaveData) getLastNonConfigurationInstance();
@@ -112,16 +122,6 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     	seekBarRadius.setProgress(radius);
     	seekBarDelay.setProgress(delay);
     	populateEventsList();
-        
-        //Register listeners
-        Log.d(TAG, "Registering listeners...");
-        buttonSearch.setOnClickListener(this);
-        seekBarRadius.setOnSeekBarChangeListener(this);
-        seekBarDelay.setOnSeekBarChangeListener(this);
-        listViewEvents.setOnItemClickListener(this);
-        
-        //Setup location services
-        registerLocationListeners();
     }
     
     @Override
