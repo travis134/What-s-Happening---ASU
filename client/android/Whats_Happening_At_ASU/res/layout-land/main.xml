@@ -7,9 +7,9 @@
         <LinearLayout android:id="@+id/linearLayout2" android:orientation="vertical" android:layout_width="fill_parent" android:layout_weight="1" android:padding="15dip" android:layout_height="fill_parent">
             <TextView android:id="@+id/textViewRadius" android:text="Radius" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000"></TextView>
             <SeekBar android:max="500" android:progress="125" android:id="@+id/seekBarRadius" android:layout_width="match_parent" android:layout_height="wrap_content"></SeekBar>
-            <TextView android:id="@+id/textViewDelay" android:text="Delay" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000"></TextView>
+            <TextView android:id="@+id/textViewDelay" android:text="Delay" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000" android:layout_marginTop="10dip"></TextView>
             <SeekBar android:max="240" android:progress="60" android:id="@+id/seekBarDelay" android:layout_width="match_parent" android:layout_height="wrap_content"></SeekBar>
-            <Button android:id="@+id/buttonWhatsHappening" android:text="What's Happening?" android:layout_width="fill_parent" android:layout_height="wrap_content"></Button>
+            <Button android:id="@+id/buttonWhatsHappening" android:text="What's Happening?" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="30dip"></Button>
         </LinearLayout>
         <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:id="@+id/linearLayout3" android:layout_height="fill_parent" android:layout_weight="1" android:padding="15dip">
             <TextView android:id="@+id/textViewEvents" android:text="Events (tap for directions)" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF000000"></TextView>
