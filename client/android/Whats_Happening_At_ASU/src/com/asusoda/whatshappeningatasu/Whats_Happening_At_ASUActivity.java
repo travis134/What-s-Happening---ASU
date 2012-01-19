@@ -15,14 +15,17 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.Criteria;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -63,10 +66,14 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	private LocationListener listenerCoarse;
 	private LocationListener listenerFine;
 	private boolean locationAvailable, formatMetric;
+	private Toast toastMessage;
 	DecimalFormat decimalFormat;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
+    	//Welcome!
+    	toastMessage = Toast.makeText(this, null, Toast.LENGTH_LONG);
+    	
     	//Set default layout
     	Log.d(TAG, "Starting the app...");
         super.onCreate(savedInstanceState);
@@ -103,7 +110,17 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         listViewEvents.setOnItemClickListener(this);
         
         //Setup location services
-        registerLocationListeners();
+      //Setup location manager
+    	Log.d(TAG, "Creating location manager...");
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        
+        if ( !locationManager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
+        	locationAvailable = false;
+            buildAlertMessageNoGps();
+        }else{
+        	locationAvailable = true;
+            registerLocationListeners();	
+        }
         
         //Load any saved data
         Log.d(TAG, "Loading any saved data...");
@@ -125,11 +142,27 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     }
     
     @Override
+    protected void onResume() {
+    	locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+    	if ( !locationManager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
+        	locationAvailable = false;
+            buildAlertMessageNoGps();
+        }else{
+        	locationAvailable = true;
+            registerLocationListeners();	
+        }
+    	super.onResume();
+    }
+    
+    @Override
     protected void onPause() {
-    	//Stop storing location
-    	Log.d(TAG, "Stopping location services...");
-    	locationManager.removeUpdates(listenerCoarse);
-    	locationManager.removeUpdates(listenerFine);
+    	if(locationAvailable)
+    	{
+	    	//Stop storing location
+	    	Log.d(TAG, "Stopping location services...");
+	    	locationManager.removeUpdates(listenerCoarse);
+	    	locationManager.removeUpdates(listenerFine);
+    	}
     	super.onPause();
     }
     
@@ -146,26 +179,21 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     	
     	if(eventsList.isEmpty())
     	{
-    		Toast.makeText(this, "No events found", Toast.LENGTH_SHORT).show();
         	listViewEvents.setVisibility(8);
         	textViewEvents.setVisibility(8);
     	}else{
-    		Log.d(TAG, "b1");
     		listViewEvents.setVisibility(0);
         	textViewEvents.setVisibility(0);
-        	Log.d(TAG, "b2");  
         	for(Event ev : eventsList) {
         		eventAdapter.add(ev);
         		Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
         		}
-        	Log.d(TAG, "b3");
         	eventAdapter.notifyDataSetChanged();
+        	toastMessage.cancel();
     	}
     }
     private void registerLocationListeners() {
-        //Setup location manager
-    	Log.d(TAG, "Creating location manager...");
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        
         
         //Setup location provider criterion
         Log.d(TAG, "Creating location criterion...");
@@ -267,21 +295,53 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
             };
     }
 
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Yout GPS seems to be disabled, do you want to enable it?")
+               .setCancelable(false)
+               .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                   public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                	   startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                   }
+               })
+               .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                   public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
+                        dialog.cancel();
+                   }
+               });
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+    
 	@Override
 	public void onClick(View v) {
 	    switch (v.getId()) {
 	    case R.id.buttonWhatsHappening:
 	      if(currentLocation == null) {
-	    	  Toast.makeText(this, "No location found, make sure GPS is turned on.", Toast.LENGTH_LONG).show();
+	    	  toastMessage.cancel();
+	    	  toastMessage = Toast.makeText(this, "Waiting for GPS...", Toast.LENGTH_SHORT);
+	    	  toastMessage.show();
 	    	  listViewEvents.setVisibility(8);
 	    	  textViewEvents.setVisibility(8);
 	    	  break;
 	      }
-	      Toast.makeText(this, "Working...", Toast.LENGTH_SHORT).show();
-	      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ") with a delay of " + delay);
+	      toastMessage.cancel();
+	      toastMessage = Toast.makeText(this, "Working...", Toast.LENGTH_SHORT);
+	      toastMessage.show();
 	      eventAdapter.clear();
-	      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
-	      populateEventsList();
+	      new Thread(new Runnable() {
+	    	    public void run() {
+				      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ") with a delay of " + delay);
+				      //eventAdapter.clear();
+				      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
+				      runOnUiThread(new Runnable() {
+				    	     public void run() {
+				    	    	 populateEventsList();
+				    	     }
+				      });
+				      
+	    	    }
+	      }).start();
 	      break;
 	    }
 	  }
@@ -322,6 +382,7 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         	getRequest.abort();
         	Log.e(getClass().getSimpleName(), "Error for URL " + url, e);
         }
+        
         
         return null;
     }
@@ -475,7 +536,9 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 		Intent mapCall = new Intent(Intent.ACTION_VIEW, eventsList.get(arg2).getLocation().getBuilding().getDirections());
 		startActivity(mapCall); 
 		}catch(ActivityNotFoundException ex) {
-			Toast.makeText(this, "No maps app found, please install Google Maps.", Toast.LENGTH_LONG).show();
+			toastMessage.cancel();
+			Toast.makeText(this, "No maps app found, please install Google Maps.", Toast.LENGTH_LONG);
+			toastMessage.show();
 			ex.printStackTrace();
 		}
 	}
