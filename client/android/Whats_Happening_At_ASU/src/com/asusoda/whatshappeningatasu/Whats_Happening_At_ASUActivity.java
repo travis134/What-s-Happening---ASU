@@ -20,10 +20,6 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.location.Criteria;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.location.LocationProvider;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -49,7 +45,7 @@ import com.google.gson.reflect.TypeToken;
 
 public class Whats_Happening_At_ASUActivity extends Activity implements OnClickListener, OnSeekBarChangeListener, OnItemClickListener {
 	//Debug tag
-	private final String TAG = "WHAA";
+	public final static String TAG = "WHAA";
 	
 	//UI
 	private Button buttonSearch;
@@ -58,19 +54,18 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 	private ListView listViewEvents;
 	
 	//Data
-	private android.location.Location currentLocation;
 	private EventAdapter eventAdapter;
 	private int radius, delay;
 	private List<Event> eventsList;
-	private LocationManager locationManager;
-	private LocationListener listenerCoarse;
-	private LocationListener listenerFine;
-	private boolean locationAvailable, formatMetric;
+	private LocationHelper locationHelper;
+	private boolean formatMetric;
 	private Toast toastMessage;
 	DecimalFormat decimalFormat;
 	
+	//Activity lifecycle overrides
     @Override
     public void onCreate(Bundle savedInstanceState) {
+    	Log.d(TAG, "Created.");
     	//Welcome!
     	toastMessage = Toast.makeText(this, null, Toast.LENGTH_LONG);
     	
@@ -93,7 +88,6 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         radius = 125; //125 meters
         delay = 60; //60 minutes
         eventsList = new ArrayList<Event>();
-        locationAvailable = true;
         formatMetric = false;
         decimalFormat = new DecimalFormat("#.##");
         
@@ -108,19 +102,6 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         seekBarRadius.setOnSeekBarChangeListener(this);
         seekBarDelay.setOnSeekBarChangeListener(this);
         listViewEvents.setOnItemClickListener(this);
-        
-        //Setup location services
-      //Setup location manager
-    	Log.d(TAG, "Creating location manager...");
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        
-        if ( !locationManager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
-        	locationAvailable = false;
-            buildAlertMessageNoGps();
-        }else{
-        	locationAvailable = true;
-            registerLocationListeners();	
-        }
         
         //Load any saved data
         Log.d(TAG, "Loading any saved data...");
@@ -143,27 +124,28 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     
     @Override
     protected void onResume() {
-    	locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-    	if ( !locationManager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
-        	locationAvailable = false;
+    	Log.d(TAG, "Resumed.");
+    	//Setup location services
+    	Log.d(TAG, "Creating location helper...");
+    	locationHelper = new LocationHelper(this);
+
+        if(!locationHelper.isGpsEnabled()) {
             buildAlertMessageNoGps();
-        }else{
-        	locationAvailable = true;
-            registerLocationListeners();	
         }
-    	super.onResume();
+        super.onResume();
     }
     
     @Override
     protected void onPause() {
-    	if(locationAvailable)
-    	{
-	    	//Stop storing location
-	    	Log.d(TAG, "Stopping location services...");
-	    	locationManager.removeUpdates(listenerCoarse);
-	    	locationManager.removeUpdates(listenerFine);
-    	}
+    	
+    	Log.d(TAG, "Paused.");
+    	locationHelper.dispose();
     	super.onPause();
+    }
+    
+    public void onDestroy() {
+    	Log.d(TAG, "Destroyed.");
+    	super.onDestroy();
     }
     
     @Override
@@ -172,168 +154,24 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
     	return data;
     }
     
-    private void populateEventsList() {
-    	if(eventsList == null){
-    		return;
-    	}
-    	
-    	if(eventsList.isEmpty())
-    	{
-        	listViewEvents.setVisibility(8);
-        	textViewEvents.setVisibility(8);
-    	}else{
-    		listViewEvents.setVisibility(0);
-        	textViewEvents.setVisibility(0);
-        	for(Event ev : eventsList) {
-        		eventAdapter.add(ev);
-        		Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
-        		}
-        	eventAdapter.notifyDataSetChanged();
-        	toastMessage.cancel();
-    	}
-    }
-    private void registerLocationListeners() {
-        
-        
-        //Setup location provider criterion
-        Log.d(TAG, "Creating location criterion...");
-        Criteria fine = new Criteria();
-        fine.setAccuracy(Criteria.ACCURACY_FINE);
-        Criteria coarse = new Criteria();
-        coarse.setAccuracy(Criteria.ACCURACY_COARSE);
-        
-        //Store last known location
-        Log.d(TAG, "Storing last known location...");
-        currentLocation = locationManager.getLastKnownLocation(locationManager.getBestProvider(fine,  true));
-        
-        //Setup location listeners
-        Log.d(TAG, "Creating location listeners...");
-        if (listenerFine == null || listenerCoarse == null) {
-        	createLocationListeners();
-        }
-
-        //Register location manager with coarse location listener, poll every 500ms until fix is accurate to 1000m
-        Log.d(TAG, "Registering location manager with coarse location listener...");
-        locationManager.requestLocationUpdates(locationManager.getBestProvider(coarse, true), 500, 1000, listenerCoarse);
-          
-      	//Register location manager with fine location listener, poll every 500ms until fix is accurate to 50m
-        Log.d(TAG, "Registering location manager with fine location listener...");
-        locationManager.requestLocationUpdates(locationManager.getBestProvider(fine, true), 500, 50, listenerFine);
-    }
-    
-    private void createLocationListeners() {
-    	//Setup coarse location listener
-    	Log.d(TAG, "Creating coarse location listener...");
-    	listenerCoarse = new LocationListener() {
-        	
-        	public void onLocationChanged(android.location.Location location) {
-        		//Get GPS fix
-        		Log.d(TAG, "Location changed: (" + location.getLatitude() + ", " + location.getLongitude() + ")");
-            	currentLocation = location;
-            	if (location.getAccuracy() > 1000 && location.hasAccuracy()) {
-            		//Fix acquired, stop storing location
-            		Log.d(TAG, "GPS Fix acquired");
-            		locationManager.removeUpdates(this);
-            	}
-            }
-
-            public void onStatusChanged(String provider, int status, Bundle extras) {
-            	switch(status) {
-            	case LocationProvider.OUT_OF_SERVICE:
-            	case LocationProvider.TEMPORARILY_UNAVAILABLE:
-            		//Coarse GPS unavailable
-            		Log.d(TAG, "Coarse GPS unavailable");
-            		locationAvailable = false;
-            		break;
-            	case LocationProvider.AVAILABLE:
-            		//Coarse GPS available
-            		Log.d(TAG, "Coarse GPS available");
-            		locationAvailable = true;
-            		break;
-            	}
-            }
-
-            public void onProviderEnabled(String provider) {}
-
-            public void onProviderDisabled(String provider) {}
-          };
-          
-        //Setup fine location listener
-      	Log.d(TAG, "Creating fine location listener...");
-      	listenerFine = new LocationListener() {
-          	
-          	public void onLocationChanged(android.location.Location location) {
-          		//Get GPS fix
-          		Log.d(TAG, "Location changed: (" + location.getLatitude() + ", " + location.getLongitude() + ")");
-              	currentLocation = location;
-              	if (location.getAccuracy() > 1000 && location.hasAccuracy()) {
-              		//Fix acquired, stop storing location
-              		Log.d(TAG, "GPS Fix acquired");
-              		locationManager.removeUpdates(this);
-              	}
-              }
-
-              public void onStatusChanged(String provider, int status, Bundle extras) {
-              	switch(status) {
-              	case LocationProvider.OUT_OF_SERVICE:
-              	case LocationProvider.TEMPORARILY_UNAVAILABLE:
-              		//Fine GPS unavailable
-              		Log.d(TAG, "Fine GPS unavailable");
-              		locationAvailable = false;
-              		break;
-              	case LocationProvider.AVAILABLE:
-              		//Fine GPS available
-            		Log.d(TAG, "Fine GPS available");
-              		locationAvailable = true;
-              		break;
-              	}
-              }
-
-              public void onProviderEnabled(String provider) {}
-
-              public void onProviderDisabled(String provider) {}
-            };
-    }
-
-    private void buildAlertMessageNoGps() {
-        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Yout GPS seems to be disabled, do you want to enable it?")
-               .setCancelable(false)
-               .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                   public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                	   startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                   }
-               })
-               .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                   public void onClick(final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                        dialog.cancel();
-                   }
-               });
-        final AlertDialog alert = builder.create();
-        alert.show();
-    }
-    
-	@Override
+    //Activity event overrides
+    @Override
 	public void onClick(View v) {
 	    switch (v.getId()) {
 	    case R.id.buttonWhatsHappening:
-	      if(currentLocation == null) {
-	    	  toastMessage.cancel();
-	    	  toastMessage = Toast.makeText(this, "Waiting for GPS...", Toast.LENGTH_SHORT);
-	    	  toastMessage.show();
+	      if(!locationHelper.isLocationAvailable()) {
+	    	  Toast.makeText(this, "Waiting for location...", Toast.LENGTH_SHORT).show();
 	    	  listViewEvents.setVisibility(8);
 	    	  textViewEvents.setVisibility(8);
 	    	  break;
 	      }
-	      toastMessage.cancel();
-	      toastMessage = Toast.makeText(this, "Working...", Toast.LENGTH_SHORT);
-	      toastMessage.show();
+	      Toast.makeText(this, "Working...", Toast.LENGTH_SHORT).show();
 	      eventAdapter.clear();
 	      new Thread(new Runnable() {
 	    	    public void run() {
-				      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + currentLocation.getLatitude() + ", " + currentLocation.getLongitude() + ") with a delay of " + delay);
+				      Log.i(TAG, "Searching for events within a " + radius + "m radius of (" + locationHelper.getLocation().getLatitude() + ", " + locationHelper.getLocation().getLongitude() + ") with a delay of " + delay);
 				      //eventAdapter.clear();
-				      runJSONParser(currentLocation.getLatitude(), currentLocation.getLongitude());
+				      runJSONParser(locationHelper.getLocation().getLatitude(), locationHelper.getLocation().getLongitude());
 				      runOnUiThread(new Runnable() {
 				    	     public void run() {
 				    	    	 populateEventsList();
@@ -364,6 +202,105 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 			return super.onOptionsItemSelected(item);
 		}
 	}
+	
+	@Override
+	public void onStartTrackingTouch(SeekBar seekBar) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onStopTrackingTouch(SeekBar seekBar) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
+		try {
+		Intent mapCall = new Intent(Intent.ACTION_VIEW, eventsList.get(arg2).getLocation().getBuilding().getDirections());
+		startActivity(mapCall); 
+		}catch(ActivityNotFoundException ex) {
+			toastMessage.cancel();
+			Toast.makeText(this, "No maps app found, please install Google Maps.", Toast.LENGTH_LONG);
+			toastMessage.show();
+			ex.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onProgressChanged(SeekBar seekBar, int progress,
+			boolean fromUser) {
+		switch (seekBar.getId()) {
+		case R.id.seekBarDelay:
+			delay = progress;
+			if(delay < 60) {
+				delay = 30;
+			}else if(delay >= 60 && delay < 90) {
+				delay = 60;
+			}else if(delay >= 90 && delay < 120) {
+				delay = 90;
+			}else if(delay >= 120 && delay < 150) {
+				delay = 120;
+			}else if(delay >= 150 && delay < 180) {
+				delay = 150;
+			}else if(delay >= 180 && delay < 210) {
+				delay = 180;
+			}else if(delay >= 210 && delay < 240) {
+				delay = 210;
+			}else if(delay >= 240) {
+				delay = 240;
+			}
+	        textViewDelay.setText("Delay: " + formatDelay(delay));
+			break;
+		case R.id.seekBarRadius:
+			radius = progress;
+			if(radius < 10) {
+				radius = 10;
+			}
+			textViewRadius.setText("Radius: " + formatRadius(radius));
+			break;
+		}
+	}
+    
+    private void populateEventsList() {
+    	if(eventsList == null){
+    		return;
+    	}
+    	
+    	if(eventsList.isEmpty())
+    	{
+        	listViewEvents.setVisibility(8);
+        	textViewEvents.setVisibility(8);
+    	}else{
+    		listViewEvents.setVisibility(0);
+        	textViewEvents.setVisibility(0);
+        	for(Event ev : eventsList) {
+        		eventAdapter.add(ev);
+        		Log.i(TAG, ev.getName() + " in " + ev.getLocation().getBuilding().getName());
+        		}
+        	eventAdapter.notifyDataSetChanged();
+        	toastMessage.cancel();
+    	}
+    }
+    
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("You need to have GPS enabled to use this application. Would you like to enable GPS?")
+               .setCancelable(false)
+               .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                   public void onClick(final DialogInterface dialog, final int id) {
+                	   startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                   }
+               })
+               .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                   public void onClick(final DialogInterface dialog, final int id) {
+                        dialog.cancel();
+                   }
+               });
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
 	
 	public InputStream getJSONData(String url) {
         DefaultHttpClient client = new DefaultHttpClient();
@@ -401,41 +338,6 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
         	eventsList = new ArrayList<Event>();
         }
     }
-
-	@Override
-	public void onProgressChanged(SeekBar seekBar, int progress,
-			boolean fromUser) {
-		switch (seekBar.getId()) {
-		case R.id.seekBarDelay:
-			delay = progress;
-			if(delay < 60) {
-				delay = 30;
-			}else if(delay >= 60 && delay < 90) {
-				delay = 60;
-			}else if(delay >= 90 && delay < 120) {
-				delay = 90;
-			}else if(delay >= 120 && delay < 150) {
-				delay = 120;
-			}else if(delay >= 150 && delay < 180) {
-				delay = 150;
-			}else if(delay >= 180 && delay < 210) {
-				delay = 180;
-			}else if(delay >= 210 && delay < 240) {
-				delay = 210;
-			}else if(delay >= 240) {
-				delay = 240;
-			}
-	        textViewDelay.setText("Delay: " + formatDelay(delay));
-			break;
-		case R.id.seekBarRadius:
-			radius = progress;
-			if(radius < 10) {
-				radius = 10;
-			}
-			textViewRadius.setText("Radius: " + formatRadius(radius));
-			break;
-		}
-	}
 
 	private String formatDelay(int inDelay)
 	{
@@ -479,18 +381,6 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
 		return decimalFormat.format(temp) + " " + unit;
 	}
 	
-	@Override
-	public void onStartTrackingTouch(SeekBar seekBar) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void onStopTrackingTouch(SeekBar seekBar) {
-		// TODO Auto-generated method stub
-		
-	}
-	
 	private class EventAdapter extends ArrayAdapter<Event> {
 
         private List<Event> events;
@@ -528,18 +418,5 @@ public class Whats_Happening_At_ASUActivity extends Activity implements OnClickL
                 }
                 return v;
         }
-	}
-
-	@Override
-	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-		try {
-		Intent mapCall = new Intent(Intent.ACTION_VIEW, eventsList.get(arg2).getLocation().getBuilding().getDirections());
-		startActivity(mapCall); 
-		}catch(ActivityNotFoundException ex) {
-			toastMessage.cancel();
-			Toast.makeText(this, "No maps app found, please install Google Maps.", Toast.LENGTH_LONG);
-			toastMessage.show();
-			ex.printStackTrace();
-		}
 	}
 }
